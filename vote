@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import os
+from typing import Dict, List, Tuple, Union, cast
+
+
+def repo_root() -> str:
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def candidates(election: str) -> Tuple[int, List[str]]:
+    with open(os.path.join(repo_root(), election, "candidates.json")) as f:
+        result = cast(Dict[str, Union[int, List[str]]], json.load(f))
+        seats = cast(int, result["seats"])
+        candidates = cast(List[str], result["candidates"])
+        return (seats, candidates)
+
+
+def vote_path(election: str, user: str) -> str:
+    return os.path.join(repo_root(), election, "votes", "{}.json".format(user))
+
+
+def current_vote(election: str, user: str) -> List[str]:
+    try:
+        with open(vote_path(election, user)) as f:
+            result = cast(List[str], json.load(f))
+            return result
+    except FileNotFoundError:
+        return []
+
+
+def save_vote(election: str, user: str, votes: List[str]) -> None:
+    with open(vote_path(election, user), "w") as f:
+        json.dump(votes, f, indent=4)
+
+
+def print_candidate_list(votes: List[str], indent: int = 4) -> None:
+    indent_str = " " * indent
+    for i, v in enumerate(votes):
+        print("{}{}: {}".format(indent_str, i + 1, v))
+
+
+def print_current_vote(votes: List[str]) -> None:
+    print("Your current vote is:")
+    if len(votes):
+        print_candidate_list(votes)
+    else:
+        print("    No vote recorded.")
+    print()
+
+
+def print_candidates(candidates: List[str]) -> None:
+    print("Candidates are:")
+    print_candidate_list(candidates)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Log a vote for a TOF election"
+    )
+    parser.add_argument(
+        "--election",
+        type=str,
+        default="2024H1",
+        help="The election to vote on",
+    )
+    parser.add_argument(
+        "--user", "-u", type=str, required=True, help="Github userid"
+    )
+    args = parser.parse_args()
+
+    (seats, candidate_list) = candidates(args.election)
+    votes = current_vote(args.election, args.user)
+
+    print("Voting for TOF members for", args.election)
+    print(
+        """
+Add your choices for TOF in order of highest preference with 'vote N' where N
+is the candidate selected.  'save' will save your vote, 'clear' will erase all
+of your selections, and 'quit' quits.
+"""
+    )
+
+    done = False
+    while not done:
+        print_current_vote(votes)
+        print_candidates(candidate_list)
+
+        choice = input("quit/save/clear/vote N ? ").split()
+        if choice[0] == "quit":
+            done = True
+            continue
+        elif choice[0] == "save":
+            save_vote(args.election, args.user, votes)
+            print("Saved vote.")
+            continue
+        elif choice[0] == "clear":
+            votes = []
+            continue
+        elif choice[0] == "vote" and len(choice) == 2:
+            try:
+                choice_num = int(choice[1])
+                if choice_num < 0 or choice_num > len(candidate_list):
+                    print("Unexpected index:", choice[1])
+                    continue
+                candidate = candidate_list[choice_num - 1]
+
+                if candidate in votes:
+                    print("You already voted for", candidate)
+                    continue
+
+                if len(votes) == seats:
+                    print("You have already voted for", seats, "candidates.")
+                    continue
+
+                votes.append(candidate_list[choice_num - 1])
+                continue
+            except ValueError:
+                print("Unexpected index:", choice[1])
+        else:
+            print("Unexpected command:", " ".join(choice))
+
+
+if __name__ == "__main__":
+    main()
