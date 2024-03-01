@@ -18,6 +18,13 @@ def candidates(election: str) -> Tuple[int, List[str]]:
         return (seats, candidates)
 
 
+def rollcall(election: str, user: str) -> bool:
+    with open(os.path.join(repo_root(), election, "rollcall.json")) as f:
+        if user in json.load(f):
+            return True
+    return False
+
+
 def vote_path(election: str, user: str) -> str:
     return os.path.join(repo_root(), election, "votes", "{}.json".format(user))
 
@@ -82,6 +89,10 @@ is the candidate selected.  'save' will save your vote, 'clear' will erase all
 of your selections, and 'quit' quits.
 """
     )
+
+    if not rollcall(args.election, args.user):
+        print("Sorry, you are not qualified to vote in this election.")
+        return
 
     done = False
     while not done:
