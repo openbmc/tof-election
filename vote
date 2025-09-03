@@ -70,7 +70,7 @@ def main() -> None:
     parser.add_argument(
         "--election",
         type=str,
-        default="2024H1",
+        default="2025H2",
         help="The election to vote on",
     )
     parser.add_argument(
