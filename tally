@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import os
+
+parser = argparse.ArgumentParser(description="Tally a vote for a TOF election")
+parser.add_argument(
+    "--election",
+    type=str,
+    default="2025H2",
+    help="The election to vote on",
+)
+args = parser.parse_args()
+
+with open(os.path.join(args.election, "candidates.json")) as c:
+    candidates_json = json.load(c)
+seats: int = candidates_json["seats"]
+candidates: list[str] = candidates_json["candidates"]
+
+with open(os.path.join(args.election, "rollcall.json")) as j:
+    rollcall = json.load(j)
+
+vote_dir = os.path.join(args.election, "votes")
+
+ballots: list[list[str]] = []
+for voter, status in rollcall.items():
+    vote_path = os.path.join(vote_dir, f"{voter}.json")
+    if not os.path.exists(vote_path):
+        print(f"No vote found for {voter}")
+        continue
+
+    with open(vote_path, "r") as f:
+        votes: list[str] = json.load(f)
+
+    votes_count = 3 if rollcall[voter] == "highly-productive" else 1
+
+    print(f"{voter} ({votes_count}): {votes}")
+    for vote in range(0, votes_count):
+        ballots.append(votes)
+
+print()
+
+elected: list[str] = []
+for seat in range(1, seats + 1):
+    print(f"Election for Seat {seat}")
+    round = 0
+    rejected = elected.copy()
+    while True:
+        round = round + 1
+        print(f"Round {round}")
+
+        total_votes = 0
+        round_votes: dict[str, int] = {}
+        for candidate in candidates:
+            if candidate in rejected:
+                continue
+            round_votes[candidate] = 0
+
+        for ballot in ballots:
+            for name in ballot:
+                if name not in rejected:
+                    round_votes[name] = round_votes[name] + 1
+                    total_votes += 1
+                    break
+
+        print(f"Votes this round: {round_votes}")
+        least_votes = min(round_votes.values())
+        most_votes = max(round_votes.values())
+        now_elected: str = ""
+        now_rejected: str = ""
+        for candidate in round_votes.keys():
+            if round_votes[candidate] == least_votes:
+                now_rejected = candidate
+            if round_votes[candidate] == most_votes and most_votes >= (total_votes / 2):
+                now_elected = candidate
+
+        if now_elected:
+            print(f"Elected {now_elected}")
+            elected.append(now_elected)
+            break
+
+        print(f"Rejected {now_rejected} from the next round.")
+        rejected.append(now_rejected)
+
+print(f"Final election: {elected}")
