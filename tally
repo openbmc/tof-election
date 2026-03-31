@@ -72,7 +72,7 @@ for seat in range(1, seats + 1):
         for candidate in round_votes.keys():
             if round_votes[candidate] == least_votes:
                 now_rejected = candidate
-            if round_votes[candidate] == most_votes and most_votes >= (total_votes / 2):
+            if round_votes[candidate] == most_votes and most_votes > (total_votes / 2):
                 now_elected = candidate
 
         if now_elected:
